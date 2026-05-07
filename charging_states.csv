@@ -1,6 +1,0 @@
-Timestamp (UTC),Charging State,Usable Battery Level (%),Battery Range (mi),Ideal Battery Range (mi),Charge Rate (mph),Charger Current (A),Charger Phases,Charger Power (kW),Charger Voltage (V)
-"2026-05-06 17:18:55","Disconnected","79","258.5551",,,"0",,"0","2"
-"2026-05-06 17:20:47","Disconnected","79","258.5551",,,"0",,"0","2"
-"2026-05-06 17:21:40","Disconnected","79","258.5551",,,"0",,"0","2"
-"2026-05-06 17:21:47","Disconnected","79","258.5551",,,"0",,"0","2"
-"2026-05-06 17:25:13","Disconnected","79","258.38614",,,"0",,"0","2"
