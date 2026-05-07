@@ -1,6 +1,5 @@
 # Updated Tesla RED_GRID Dashboard Script (Improved Drive Log + Charging Sessions UI)
 
-```python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
