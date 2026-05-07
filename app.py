@@ -1,3 +1,6 @@
+# Updated Tesla RED_GRID Dashboard Script (Improved Drive Log + Charging Sessions UI)
+
+```python
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -27,7 +30,6 @@ st.markdown("""
     background-size: 50px 50px;
 }
 
-/* Headers */
 h1, h2, h3 {
     font-family: 'Orbitron', sans-serif !important;
     color: #ff0000 !important;
@@ -35,7 +37,6 @@ h1, h2, h3 {
     letter-spacing: 6px;
 }
 
-/* Metrics */
 [data-testid="stMetric"] {
     background: rgba(20,0,0,0.85);
     border: 1px solid #ff0000;
@@ -50,7 +51,6 @@ h1, h2, h3 {
     text-shadow: 0 0 8px rgba(255,0,0,0.8);
 }
 
-/* Inputs */
 label {
     color: #ff0000 !important;
     font-family: 'JetBrains Mono';
@@ -58,13 +58,42 @@ label {
     text-transform: uppercase;
 }
 
-hr {
-    border: none;
-    height: 1px;
-    background: linear-gradient(to right, transparent, red, transparent);
+section[data-testid="stSidebar"] {
+    display: none;
 }
 
-header, footer {visibility: hidden;}
+header, footer {
+    visibility: hidden;
+}
+
+.tron-card {
+    background: rgba(15,0,0,0.88);
+    border: 1px solid rgba(255,0,0,0.4);
+    padding: 18px;
+    margin-bottom: 12px;
+    box-shadow: 0 0 14px rgba(255,0,0,0.15);
+    border-radius: 4px;
+}
+
+.tron-title {
+    color: #ff4444;
+    font-family: Orbitron;
+    letter-spacing: 2px;
+    font-size: 0.8rem;
+}
+
+.tron-value {
+    color: #ffffff;
+    font-family: 'JetBrains Mono';
+    font-size: 1.1rem;
+}
+
+.tron-divider {
+    height: 1px;
+    background: linear-gradient(to right, transparent, red, transparent);
+    margin-top: 10px;
+    margin-bottom: 10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -82,20 +111,27 @@ def load_data():
     }
 
     data = {}
+
     for key, path in files.items():
         try:
             df = pd.read_csv(path, encoding="latin-1")
             df.columns = df.columns.str.replace('Â', '', regex=False)
 
             if "Timestamp (UTC)" in df.columns:
-                df["Timestamp (UTC)"] = pd.to_datetime(df["Timestamp (UTC)"], errors="coerce")
-                df = df.dropna(subset=["Timestamp (UTC)"]).sort_values("Timestamp (UTC)")
+                df["Timestamp (UTC)"] = pd.to_datetime(
+                    df["Timestamp (UTC)"],
+                    errors="coerce"
+                )
+                df = df.dropna(subset=["Timestamp (UTC)"])
+                df = df.sort_values("Timestamp (UTC)")
 
             data[key] = df
-        except:
+
+        except Exception:
             data[key] = pd.DataFrame()
 
     return data
+
 
 data = load_data()
 
@@ -105,7 +141,9 @@ data = load_data()
 st.markdown("""
 <div style="border-left:4px solid red;padding-left:15px;margin-bottom:20px;">
 <h1>TESLA // RED_GRID OS</h1>
-<p style="font-family:JetBrains Mono;color:#ff5555;">USER: DRIVER // STATUS: CONNECTED</p>
+<p style="font-family:JetBrains Mono;color:#ff5555;">
+USER: DRIVER // STATUS: CONNECTED
+</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -122,6 +160,7 @@ view = st.select_slider(
 # RESAMPLING
 # ---------------------------------------------------------
 def resample_df(df, view):
+
     if df.empty or view == "5 Min":
         return df
 
@@ -140,11 +179,14 @@ def resample_df(df, view):
     freq = freq_map.get(view, "h")
 
     numeric = df.select_dtypes(include="number")
+
     if numeric.empty:
         return df.reset_index()
 
     res = numeric.resample(freq).mean().interpolate(limit_direction="both")
+
     return res.reset_index()
+
 
 bat_r = resample_df(data["bat"], view)
 chg_r = resample_df(data["chg"], view)
@@ -157,13 +199,16 @@ drv_r = resample_df(data["drv"], view)
 def safe_val(df, col, suffix=""):
     if df.empty or col not in df.columns:
         return "--"
+
     v = df[col].iloc[-1]
+
     if isinstance(v, (int, float)):
         return f"{v:.1f}{suffix}"
+
     return str(v)
 
 # ---------------------------------------------------------
-# KPIs
+# KPI BAR
 # ---------------------------------------------------------
 c1, c2, c3, c4 = st.columns(4)
 
@@ -178,30 +223,48 @@ st.write("---")
 # CHART STYLE
 # ---------------------------------------------------------
 def style(fig, color="#ff0000"):
+
     fig.update_layout(
         template="plotly_dark",
         plot_bgcolor="rgba(0,0,0,0)",
         paper_bgcolor="rgba(0,0,0,0)",
         margin=dict(l=0, r=0, t=30, b=0),
-        hovermode="x unified"
+        hovermode="x unified",
+        showlegend=False
     )
+
     fig.update_traces(
         line=dict(width=3, color=color, shape="spline"),
         fill="tozeroy",
-        fillcolor="rgba(255,0,0,0.12)"
+        fillcolor="rgba(255,0,0,0.10)"
     )
+
     return fig
 
+# ---------------------------------------------------------
+# SAFE PLOT
+# ---------------------------------------------------------
 def safe_plot(df, y_cols, color, title):
+
     cols = [c for c in y_cols if c in df.columns]
+
     if df.empty or not cols:
         st.warning(f"No data for {title}")
         return
-    fig = px.line(df, x="Timestamp (UTC)", y=cols)
-    st.plotly_chart(style(fig, color), use_container_width=True)
+
+    fig = px.line(
+        df,
+        x="Timestamp (UTC)",
+        y=cols
+    )
+
+    st.plotly_chart(
+        style(fig, color),
+        use_container_width=True
+    )
 
 # ---------------------------------------------------------
-# VISUALS
+# MAIN VISUALS
 # ---------------------------------------------------------
 st.markdown("### ⏻ POWER CORE")
 safe_plot(bat_r, ["Energy Remaining (kWh)"], "#ff0000", "Battery")
@@ -214,21 +277,27 @@ with col1:
 
 with col2:
     st.markdown("### ◉ THERMAL SYSTEM")
-    safe_plot(cli_r, ["Inside Temp (°C)", "Outside Temp (°C)"], "#ff4444", "Temp")
+    safe_plot(
+        cli_r,
+        ["Inside Temp (°C)", "Outside Temp (°C)"],
+        "#ff4444",
+        "Thermal"
+    )
 
 # ---------------------------------------------------------
-# DRIVE LOG
+# DRIVE LOG REBUILT
 # ---------------------------------------------------------
-st.markdown("### ◎ DRIVE LOG")
+st.markdown("### ◎ DRIVE SESSIONS")
 
-drv_raw = data["drv"]
-if not drv_raw.empty and "Speed (mph)" in drv_raw.columns:
-    df = drv_raw.copy()
-    df["moving"] = df["Speed (mph)"] > 5
-    df["trip"] = (df["moving"] != df["moving"].shift()).cumsum()
+if not data["drv"].empty and "Speed (mph)" in data["drv"].columns:
+
+    drv = data["drv"].copy()
+
+    drv["moving"] = drv["Speed (mph)"] > 5
+    drv["trip"] = (drv["moving"] != drv["moving"].shift()).cumsum()
 
     trips = (
-        df[df["moving"]]
+        drv[drv["moving"]]
         .groupby("trip")
         .agg(
             start=("Timestamp (UTC)", "min"),
@@ -240,36 +309,120 @@ if not drv_raw.empty and "Speed (mph)" in drv_raw.columns:
     )
 
     if not trips.empty:
-        st.dataframe(trips.tail(10))
-    else:
-        st.info("No driving sessions detected")
+
+        trips = trips.tail(6).iloc[::-1]
+
+        cols = st.columns(2)
+
+        for i, (_, row) in enumerate(trips.iterrows()):
+
+            duration = row['end'] - row['start']
+            mins = int(duration.total_seconds() / 60)
+
+            with cols[i % 2]:
+
+                st.markdown(f"""
+                <div class="tron-card">
+                    <div class="tron-title">DRIVE SESSION</div>
+                    <div class="tron-divider"></div>
+
+                    <div class="tron-title">START</div>
+                    <div class="tron-value">{row['start']}</div>
+
+                    <br>
+
+                    <div class="tron-title">END</div>
+                    <div class="tron-value">{row['end']}</div>
+
+                    <br>
+
+                    <div class="tron-title">MAX SPEED</div>
+                    <div class="tron-value">{row['max_speed']:.1f} MPH</div>
+
+                    <br>
+
+                    <div class="tron-title">AVG SPEED</div>
+                    <div class="tron-value">{row['avg_speed']:.1f} MPH</div>
+
+                    <br>
+
+                    <div class="tron-title">DURATION</div>
+                    <div class="tron-value">{mins} MINUTES</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
-# CHARGING
+# CHARGING UI REBUILT
 # ---------------------------------------------------------
-st.markdown("### ⏼ CHARGING SESSIONS")
+st.markdown("### ⏼ CHARGE CYCLES")
 
-chg_raw = data["chg"]
-if not chg_raw.empty and "Charging State" in chg_raw.columns:
-    df = chg_raw.copy()
-    df["charging"] = df["Charging State"].astype(str).str.contains("Charging", na=False)
-    df["session"] = (df["charging"] != df["charging"].shift()).cumsum()
+if not data["chg"].empty and "Charging State" in data["chg"].columns:
+
+    chg = data["chg"].copy()
+
+    chg["charging"] = chg["Charging State"].astype(str).str.contains(
+        "Charging",
+        na=False
+    )
+
+    chg["session"] = (
+        chg["charging"] != chg["charging"].shift()
+    ).cumsum()
 
     sessions = (
-        df[df["charging"]]
+        chg[chg["charging"]]
         .groupby("session")
         .agg(
             start=("Timestamp (UTC)", "min"),
             end=("Timestamp (UTC)", "max"),
-            avg_power=("Charger Power (kW)", "mean")
+            avg_power=("Charger Power (kW)", "mean"),
+            battery=("Usable Battery Level (%)", "max")
         )
         .reset_index(drop=True)
     )
 
     if not sessions.empty:
-        st.dataframe(sessions.tail(10))
-    else:
-        st.info("No charging sessions detected")
+
+        sessions = sessions.tail(6).iloc[::-1]
+
+        cols = st.columns(2)
+
+        for i, (_, row) in enumerate(sessions.iterrows()):
+
+            duration = row['end'] - row['start']
+            mins = int(duration.total_seconds() / 60)
+
+            with cols[i % 2]:
+
+                st.markdown(f"""
+                <div class="tron-card">
+                    <div class="tron-title">CHARGE SESSION</div>
+                    <div class="tron-divider"></div>
+
+                    <div class="tron-title">START</div>
+                    <div class="tron-value">{row['start']}</div>
+
+                    <br>
+
+                    <div class="tron-title">END</div>
+                    <div class="tron-value">{row['end']}</div>
+
+                    <br>
+
+                    <div class="tron-title">AVG POWER</div>
+                    <div class="tron-value">{row['avg_power']:.1f} KW</div>
+
+                    <br>
+
+                    <div class="tron-title">BATTERY LEVEL</div>
+                    <div class="tron-value">{row['battery']:.1f}%</div>
+
+                    <br>
+
+                    <div class="tron-title">DURATION</div>
+                    <div class="tron-value">{mins} MINUTES</div>
+                </div>
+                """, unsafe_allow_html=True)
 
 # ---------------------------------------------------------
 # FOOTER
@@ -279,3 +432,4 @@ st.markdown("""
 END OF LINE // SYSTEM ACTIVE
 </div>
 """, unsafe_allow_html=True)
+```
