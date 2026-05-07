@@ -1,4 +1,7 @@
-# Cory first usecase
+""" Cory first usecase: Tesla telemetry dashboard in Streamlit, inspired by Tesla's own UI and Tron aesthetics. 
+Show key metrics like battery range, charge level, speed, cabin temp, tire pressure, etc. 
+Use plotly for sleek time series charts. Dark theme with red accents.
+"""
 import streamlit as st
 import pandas as pd
 import plotly.express as px
